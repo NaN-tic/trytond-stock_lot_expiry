@@ -70,8 +70,8 @@ class Lot:
                     'alert_date'):
                 product_field = fname.replace('date', 'time')
                 margin = getattr(self.product.template, product_field)
-                setattr(self, fname) = (margin and date.today() +
-                    timedelta(days=margin))
+                setattr(self, fname,
+                    margin and date.today() + timedelta(days=margin))
 
     def get_expired(self, name):
         pool = Pool()
