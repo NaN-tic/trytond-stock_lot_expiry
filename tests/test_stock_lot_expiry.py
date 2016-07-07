@@ -1,100 +1,93 @@
-#!/usr/bin/env python
-# The COPYRIGHT file at the top level of this repository contains the full
-# copyright notices and license terms.
+# This file is part of Tryton.  The COPYRIGHT file at the top level of
+# this repository contains the full copyright notices and license terms.
 import datetime
 import unittest
-from decimal import Decimal
 from dateutil.relativedelta import relativedelta
+from decimal import Decimal
+
 import trytond.tests.test_tryton
-from trytond.tests.test_tryton import (POOL, DB_NAME, USER, CONTEXT, test_view,
-    test_depends)
 from trytond.exceptions import UserError
+from trytond.pool import Pool
+from trytond.tests.test_tryton import ModuleTestCase, with_transaction
 from trytond.transaction import Transaction
 
+from trytond.modules.company.tests import create_company, set_company
 
-class TestCase(unittest.TestCase):
+
+class TestCase(ModuleTestCase):
     'Test module'
+    module = 'stock_lot_expiry'
 
-    def setUp(self):
-        trytond.tests.test_tryton.install_module('stock_lot_expiry')
-        self.company = POOL.get('company.company')
-        self.location = POOL.get('stock.location')
-        self.lot = POOL.get('stock.lot')
-        self.move = POOL.get('stock.move')
-        self.product = POOL.get('product.product')
-        self.template = POOL.get('product.template')
-        self.uom = POOL.get('product.uom')
-        self.user = POOL.get('res.user')
-
-    def test0005views(self):
-        'Test views'
-        test_view('stock_lot_expiry')
-
-    def test0006depends(self):
-        'Test depends'
-        test_depends()
-
+    @with_transaction()
     def test0010_lot_on_change_product_and_expired(self):
         'Test Lot.on_change_product() and Lot.expired'
-        with Transaction().start(DB_NAME, USER,
-                context=CONTEXT) as transaction:
-            unit, = self.uom.search([('name', '=', 'Unit')])
-            template, = self.template.create([{
-                        'name': 'Test Lot.on_change_product() and Lot.expired',
-                        'type': 'goods',
-                        'consumable': True,
-                        'list_price': Decimal(1),
-                        'cost_price': Decimal(0),
-                        'cost_price_method': 'fixed',
-                        'default_uom': unit.id,
-                        'life_time': 20,
-                        'expiry_time': 10,
-                        'alert_time': 5,
-                        }])
-            product, = self.product.create([{
-                        'template': template.id,
-                        }])
-            lot, lot2, = self.lot.create([{
-                        'number': '001',
-                        'product': product.id,
-                        }, {
-                        'number': '002',
-                        'product': product.id,
-                        }])
-            self.lot.write([lot], lot.on_change_product())
+        pool = Pool()
+        Lot = pool.get('stock.lot')
+        Product = pool.get('product.product')
+        Template = pool.get('product.template')
+        Uom = pool.get('product.uom')
+        transaction = Transaction()
 
-            today = datetime.date.today()
-            self.assertEqual(lot.life_date, (today + relativedelta(days=20)))
-            self.assertEqual(lot.expiry_date, (today + relativedelta(days=10)))
-            self.assertEqual(lot.removal_date, None)
-            self.assertEqual(lot.alert_date, (today + relativedelta(days=5)))
+        unit, = Uom.search([('name', '=', 'Unit')])
+        template, = Template.create([{
+                    'name': 'Test Lot.on_change_product() and Lot.expired',
+                    'type': 'goods',
+                    'consumable': True,
+                    'list_price': Decimal(1),
+                    'cost_price': Decimal(0),
+                    'cost_price_method': 'fixed',
+                    'default_uom': unit.id,
+                    'life_time': 20,
+                    'expiry_time': 10,
+                    'alert_time': 5,
+                    }])
+        product, = Product.create([{
+                    'template': template.id,
+                    }])
+        lot, lot2, = Lot.create([{
+                    'number': '001',
+                    'product': product.id,
+                    }, {
+                    'number': '002',
+                    'product': product.id,
+                    }])
+        lot.on_change_product()
+        lot.save()
 
-            self.assertEqual(lot2.expiry_date, None)
+        today = datetime.date.today()
+        self.assertEqual(lot.life_date, (today + relativedelta(days=20)))
+        self.assertEqual(lot.expiry_date, (today + relativedelta(days=10)))
+        self.assertEqual(lot.removal_date, None)
+        self.assertEqual(lot.alert_date, (today + relativedelta(days=5)))
 
-            with transaction.set_context(stock_move_date=today):
-                self.assertEqual(self.lot(lot.id).expired, False)
-                self.assertEqual(self.lot(lot2.id).expired, False)
-            with transaction.set_context(
-                    stock_move_date=(today + relativedelta(days=10))):
-                self.assertEqual(self.lot(lot.id).expired, True)
-                self.assertEqual(self.lot(lot2.id).expired, False)
+        self.assertEqual(lot2.expiry_date, None)
 
+        with transaction.set_context(stock_move_date=today):
+            self.assertEqual(Lot(lot.id).expired, False)
+            self.assertEqual(Lot(lot2.id).expired, False)
+        with transaction.set_context(
+                stock_move_date=(today + relativedelta(days=10))):
+            self.assertEqual(Lot(lot.id).expired, True)
+            self.assertEqual(Lot(lot2.id).expired, False)
+
+    @with_transaction()
     def test0020_move_check_allow_expired(self):
         '''
         Test Lot check_allow_expired.
         '''
-        with Transaction().start(DB_NAME, USER, context=CONTEXT):
-            company, = self.company.search([
-                    ('party.name', '=', 'Dunder Mifflin'),
-                    ])
-            currency = company.currency
-            self.user.write([self.user(USER)], {
-                'main_company': company.id,
-                'company': company.id,
-                })
+        pool = Pool()
+        Location = pool.get('stock.location')
+        Lot = pool.get('stock.lot')
+        Move = pool.get('stock.move')
+        Product = pool.get('product.product')
+        Template = pool.get('product.template')
+        Uom = pool.get('product.uom')
 
-            unit, = self.uom.search([('name', '=', 'Unit')])
-            template, = self.template.create([{
+        company = create_company()
+        with set_company(company):
+
+            unit, = Uom.search([('name', '=', 'Unit')])
+            template, = Template.create([{
                         'name': 'Test Lot.on_change_product() and Lot.expired',
                         'type': 'goods',
                         'consumable': True,
@@ -106,25 +99,28 @@ class TestCase(unittest.TestCase):
                         'expiry_time': 10,
                         'alert_time': 5,
                         }])
-            product, = self.product.create([{
+            product, = Product.create([{
                         'template': template.id,
                         }])
-            lot, lot2, = self.lot.create([{
+            lot, lot2, = Lot.create([{
                         'number': '001',
                         'product': product.id,
                         }, {
                         'number': '002',
                         'product': product.id,
                         }])
-            self.lot.write([lot], lot.on_change_product())
+            lot.on_change_product()
+            lot.save()
+            self.assertEqual(lot.expiry_date,
+                datetime.date.today() + datetime.timedelta(days=10))
 
-            lost_found, = self.location.search([('type', '=', 'lost_found')])
+            lost_found, = Location.search([('type', '=', 'lost_found')])
 
-            storage, = self.location.search([('code', '=', 'STO')])
+            storage, = Location.search([('code', '=', 'STO')])
             storage.allow_expired = True
             storage.save()
 
-            expired_loc, not_allowed_expired_loc = self.location.create([{
+            expired_loc, not_allowed_expired_loc = Location.create([{
                         'name': 'Expired Location',
                         'type': 'storage',
                         'expired': True,
@@ -140,7 +136,7 @@ class TestCase(unittest.TestCase):
             today = datetime.date.today()
             expired_date = today + relativedelta(days=10)
 
-            not_allowed_move, = self.move.create([{
+            not_allowed_move, = Move.create([{
                         'product': product.id,
                         'lot': lot.id,
                         'uom': unit.id,
@@ -148,15 +144,13 @@ class TestCase(unittest.TestCase):
                         'from_location': lost_found.id,
                         'to_location': not_allowed_expired_loc.id,
                         'planned_date': today,
-                        'company': company.id,
                         'unit_price': Decimal('1'),
-                        'currency': currency.id,
                         }])
             not_allowed_move.effective_date = expired_date
             not_allowed_move.save()
-            self.assertRaises(UserError, self.move.do, [not_allowed_move])
+            self.assertRaises(UserError, Move.do, [not_allowed_move])
 
-            moves = self.move.create([{
+            moves = Move.create([{
                         'product': product.id,
                         'lot': lot.id,
                         'uom': unit.id,
@@ -164,9 +158,7 @@ class TestCase(unittest.TestCase):
                         'from_location': lost_found.id,
                         'to_location': not_allowed_expired_loc.id,
                         'planned_date': today,
-                        'company': company.id,
                         'unit_price': Decimal('1'),
-                        'currency': currency.id,
                         }, {
                         'product': product.id,
                         'lot': lot.id,
@@ -176,9 +168,7 @@ class TestCase(unittest.TestCase):
                         'to_location': storage.id,
                         'planned_date': expired_date,
                         'effective_date': expired_date,
-                        'company': company.id,
                         'unit_price': Decimal('1'),
-                        'currency': currency.id,
                         }, {
                         'product': product.id,
                         'lot': lot.id,
@@ -188,18 +178,12 @@ class TestCase(unittest.TestCase):
                         'to_location': expired_loc.id,
                         'planned_date': expired_date,
                         'effective_date': expired_date,
-                        'company': company.id,
                         'unit_price': Decimal('1'),
-                        'currency': currency.id,
                         }])
-            self.move.do(moves)
+            Move.do(moves)
 
 
 def suite():
     suite = trytond.tests.test_tryton.suite()
-    from trytond.modules.company.tests import test_company
-    for test in test_company.suite():
-        if test not in suite:
-            suite.addTest(test)
     suite.addTests(unittest.TestLoader().loadTestsFromTestCase(TestCase))
     return suite
