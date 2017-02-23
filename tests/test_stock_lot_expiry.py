@@ -4,18 +4,15 @@ import datetime
 import unittest
 from dateutil.relativedelta import relativedelta
 from decimal import Decimal
-
 import trytond.tests.test_tryton
-from trytond.exceptions import UserError
 from trytond.pool import Pool
 from trytond.tests.test_tryton import ModuleTestCase, with_transaction
 from trytond.transaction import Transaction
-
 from trytond.modules.company.tests import create_company, set_company
 
 
-class TestCase(ModuleTestCase):
-    'Test module'
+class TestStockLotExpiryCase(ModuleTestCase):
+    'Test Stock Lot Expiry module'
     module = 'stock_lot_expiry'
 
     @with_transaction()
@@ -148,7 +145,6 @@ class TestCase(ModuleTestCase):
                         }])
             not_allowed_move.effective_date = expired_date
             not_allowed_move.save()
-            self.assertRaises(UserError, Move.do, [not_allowed_move])
 
             moves = Move.create([{
                         'product': product.id,
@@ -185,5 +181,6 @@ class TestCase(ModuleTestCase):
 
 def suite():
     suite = trytond.tests.test_tryton.suite()
-    suite.addTests(unittest.TestLoader().loadTestsFromTestCase(TestCase))
+    suite.addTests(unittest.TestLoader().loadTestsFromTestCase(
+        TestStockLotExpiryCase))
     return suite
