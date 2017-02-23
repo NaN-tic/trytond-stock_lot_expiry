@@ -61,20 +61,17 @@ class Lot:
         'alert_date')
     def on_change_product(self):
         try:
-            result = super(Lot, self).on_change_product()
+            super(Lot, self).on_change_product()
         except AttributeError:
-            result = {}
+            pass
 
-        if not self.product:
-            return result
-
-        for fname in ('life_date', 'expiry_date', 'removal_date',
-                'alert_date'):
-            product_field = fname.replace('date', 'time')
-            margin = getattr(self.product.template, product_field)
-            result[fname] = (margin
-                and date.today() + timedelta(days=margin))
-        return result
+        if self.product:
+            for fname in ('life_date', 'expiry_date', 'removal_date',
+                    'alert_date'):
+                product_field = fname.replace('date', 'time')
+                margin = getattr(self.product.template, product_field)
+                setattr(self, fname,
+                    margin and date.today() + timedelta(days=margin))
 
     def get_expired(self, name):
         pool = Pool()
@@ -140,10 +137,7 @@ class Location:
     @fields.depends('expired', 'allow_expired')
     def on_change_expired(self):
         if self.expired:
-            return {
-                'allow_expired': True,
-                }
-        return {}
+            self.allow_expired = True
 
     @classmethod
     def create(cls, vlist):
@@ -187,7 +181,7 @@ class Move:
             Eval('planned_date'))
 
         cls.lot.loading = 'lazy'
-        
+
         for fname in ('state', 'to_location_allow_expired', 'effective_date',
                 'planned_date'):
             if fname not in cls.lot.depends:

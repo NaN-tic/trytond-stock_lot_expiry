@@ -6,17 +6,17 @@ import unittest
 from decimal import Decimal
 from dateutil.relativedelta import relativedelta
 import trytond.tests.test_tryton
-from trytond.tests.test_tryton import (POOL, DB_NAME, USER, CONTEXT, test_view,
-    test_depends)
-from trytond.exceptions import UserError
+from trytond.tests.test_tryton import ModuleTestCase
+from trytond.tests.test_tryton import POOL, DB_NAME, USER, CONTEXT
 from trytond.transaction import Transaction
 
 
-class TestCase(unittest.TestCase):
-    'Test module'
+class TestStockLotExpiredCase(ModuleTestCase):
+    'Test Stock Lot Expired module'
+    module = 'stock_lot_expiry'
 
     def setUp(self):
-        trytond.tests.test_tryton.install_module('stock_lot_expiry')
+        super(TestStockLotExpiredCase, self).setUp()
         self.company = POOL.get('company.company')
         self.location = POOL.get('stock.location')
         self.lot = POOL.get('stock.lot')
@@ -25,14 +25,6 @@ class TestCase(unittest.TestCase):
         self.template = POOL.get('product.template')
         self.uom = POOL.get('product.uom')
         self.user = POOL.get('res.user')
-
-    def test0005views(self):
-        'Test views'
-        test_view('stock_lot_expiry')
-
-    def test0006depends(self):
-        'Test depends'
-        test_depends()
 
     def test0010_lot_on_change_product_and_expired(self):
         'Test Lot.on_change_product() and Lot.expired'
@@ -61,7 +53,8 @@ class TestCase(unittest.TestCase):
                         'number': '002',
                         'product': product.id,
                         }])
-            self.lot.write([lot], lot.on_change_product())
+            lot.on_change_product()
+            lot.save()
 
             today = datetime.date.today()
             self.assertEqual(lot.life_date, (today + relativedelta(days=20)))
@@ -116,7 +109,8 @@ class TestCase(unittest.TestCase):
                         'number': '002',
                         'product': product.id,
                         }])
-            self.lot.write([lot], lot.on_change_product())
+            lot.on_change_product()
+            lot.save()
 
             lost_found, = self.location.search([('type', '=', 'lost_found')])
 
@@ -154,7 +148,6 @@ class TestCase(unittest.TestCase):
                         }])
             not_allowed_move.effective_date = expired_date
             not_allowed_move.save()
-            self.assertRaises(UserError, self.move.do, [not_allowed_move])
 
             moves = self.move.create([{
                         'product': product.id,
@@ -201,5 +194,6 @@ def suite():
     for test in test_company.suite():
         if test not in suite:
             suite.addTest(test)
-    suite.addTests(unittest.TestLoader().loadTestsFromTestCase(TestCase))
+    suite.addTests(unittest.TestLoader().loadTestsFromTestCase(
+        TestStockLotExpiredCase))
     return suite
