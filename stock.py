@@ -4,14 +4,14 @@ from datetime import date, timedelta
 
 from trytond.model import Workflow, ModelView, fields
 from trytond.pool import Pool, PoolMeta
-from trytond.pyson import And, Bool, Equal, Eval, If, Not
+from trytond.pyson import Bool, Eval, If
 from trytond.transaction import Transaction
 
 __all__ = ['Template', 'Lot', 'Location', 'Move']
-__metaclass__ = PoolMeta
 
 
 class Template:
+    __metaclass__ = PoolMeta
     __name__ = 'product.template'
 
     life_time = fields.Integer('Life Time',
@@ -28,6 +28,7 @@ class Template:
 
 
 class Lot:
+    __metaclass__ = PoolMeta
     __name__ = 'stock.lot'
 
     life_date = fields.Date('End of Life Date',
@@ -120,6 +121,7 @@ class Lot:
 
 
 class Location:
+    __metaclass__ = PoolMeta
     __name__ = 'stock.location'
 
     expired = fields.Boolean('Expired Products\' Location',
@@ -158,6 +160,7 @@ class Location:
 
 
 class Move:
+    __metaclass__ = PoolMeta
     __name__ = 'stock.move'
 
     to_location_allow_expired = fields.Function(
@@ -168,8 +171,8 @@ class Move:
     def __setup__(cls):
         super(Move, cls).__setup__()
         cls.lot.domain.append(
-            If(And(Equal(Eval('state', 'draft'), 'draft'),
-                    Not(Bool(Eval('to_location_allow_expired', True)))),
+            If((Eval('state', 'draft') == 'draft')
+                & ~Eval('to_location_allow_expired'),
                 ('expired', '=', False),
                 ()),
             )
@@ -181,7 +184,7 @@ class Move:
             Eval('planned_date'))
 
         cls.lot.loading = 'lazy'
-        
+
         for fname in ('state', 'to_location_allow_expired', 'effective_date',
                 'planned_date'):
             if fname not in cls.lot.depends:
