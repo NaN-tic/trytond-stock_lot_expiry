@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<!-- This file is part of Tryton. The COPYRIGHT file at the top level of
+this repository contains the full copyright notices and license terms. -->
+<tryton>
+    <data grouped="1">
+        <record model="ir.message" id="expired">
+            <field name="text">Expired</field>
+        </record>
+        <record model="ir.message" id="expired_lot_invalid_destination">
+            <field name="text">You are trying to do the Stock Move "%(move)s" but its Lot "%(lot)s" is expired and the Destination Location "%(to_location)s" dosen't accept expired lots.</field>
+        </record>
+    </data>
+</tryton>

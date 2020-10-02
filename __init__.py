@@ -6,7 +6,6 @@ from . import stock
 
 def register():
     Pool.register(
-        stock.Template,
         stock.Lot,
         stock.Location,
         stock.Move,

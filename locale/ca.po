@@ -2,19 +2,13 @@
 msgid ""
 msgstr "Content-Type: text/plain; charset=utf-8\n"
 
-msgctxt "error:stock.lot:"
+msgctxt "model:ir.message,text:expired"
 msgid "Expired"
 msgstr "Caducat"
 
-msgctxt "error:stock.move:"
-msgid ""
-"You are trying to do the Stock Move \"%(move)s\" but its Lot \"%(lot)s\" is "
-"expired and the Destination Location \"%(to_location)s\" doesn't accept "
-"expired lots."
-msgstr ""
-"Està intentant realitzar el moviment d'estoc \"%(move)s\" però el seu lot "
-"\"%(lot)s\" està caducat i la ubicació de destí \"%(to_location)s\" no "
-"accepta lots caducats."
+msgctxt "model:ir.message,text:expired_lot_invalid_destination"
+msgid "You are trying to do the Stock Move \"%(move)s\" but its Lot \"%(lot)s\" is expired and the Destination Location \"%(to_location)s\" doesn't accept expired lots."
+msgstr "Està intentant realitzar el moviment d'estoc \"%(move)s\" però el seu lot \"%(lot)s\" està caducat i la ubicació de destí \"%(to_location)s\" no accepta lots caducats."
 
 msgctxt "field:product.template,alert_time:"
 msgid "Alert Time"

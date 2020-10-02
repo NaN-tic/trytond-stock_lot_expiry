@@ -6,79 +6,29 @@ from trytond.model import Workflow, ModelView, fields
 from trytond.pool import Pool, PoolMeta
 from trytond.pyson import Bool, Eval, If
 from trytond.transaction import Transaction
+from trytond.exceptions import UserError
+from trytond.i18n import gettext
 
-__all__ = ['Template', 'Lot', 'Location', 'Move']
-
-
-class Template:
-    __metaclass__ = PoolMeta
-    __name__ = 'product.template'
-
-    life_time = fields.Integer('Life Time',
-        help='The number of days before a lot may become dangerous and should '
-        'not be consumed.')
-    expiry_time = fields.Integer('Expiry Time',
-        help='The number of days before a lot starts deteriorating without '
-        'becoming dangerous.')
-    removal_time = fields.Integer('Removal Time',
-        help='The number of days before a lot should be removed.')
-    alert_time = fields.Integer('Alert Time',
-        help='The number of days after which an alert should be notified '
-        'about the lot.')
+__all__ = ['Lot', 'Location', 'Move']
 
 
-class Lot:
-    __metaclass__ = PoolMeta
+class Lot(metaclass=PoolMeta):
     __name__ = 'stock.lot'
 
-    life_date = fields.Date('End of Life Date',
-        help='The date on which the lot may become dangerous and should not '
-        'be consumed.')
-    expiry_date = fields.Date('Expiry Date',
-        help='The date on which the lot starts deteriorating without becoming '
-        'dangerous.')
-    removal_date = fields.Date('Removal Date',
-        help='The date on which the lot should be removed.')
-    alert_date = fields.Date('Alert Date',
-        help='The date on which an alert should be notified about the lot.')
     expired = fields.Function(fields.Boolean('Expired'),
         'get_expired', searcher='search_expired')
-
-    @classmethod
-    def __setup__(cls):
-        super(Lot, cls).__setup__()
-        cls._error_messages.update({
-                'Expired': 'Expired',
-                })
 
     def get_rec_name(self, name):
         rec_name = super(Lot, self).get_rec_name(name)
         if self.expired:
-            rec_name += ' (%s)' % self.raise_user_error('Expired',
-                raise_exception=False)
+            rec_name += ' (%s)' % gettext('stock_lot_expiry.expired')
         return rec_name
-
-    @fields.depends('product', 'life_date', 'expiry_date', 'removal_date',
-        'alert_date')
-    def on_change_product(self):
-        try:
-            super(Lot, self).on_change_product()
-        except AttributeError:
-            pass
-
-        if self.product:
-            for fname in ('life_date', 'expiry_date', 'removal_date',
-                    'alert_date'):
-                product_field = fname.replace('date', 'time')
-                margin = getattr(self.product.template, product_field)
-                setattr(self, fname,
-                    margin and date.today() + timedelta(days=margin))
 
     def get_expired(self, name):
         pool = Pool()
         Date = pool.get('ir.date')
 
-        if not self.expiry_date:
+        if not self.expiration_date:
             return False
 
         context = Transaction().context
@@ -87,7 +37,7 @@ class Lot:
             date = context['stock_move_date']
         elif context.get('stock_date_end'):
             date = context['stock_date_end']
-        return self.expiry_date <= date
+        return self.expiration_date <= date
 
     @classmethod
     def search_expired(cls, name, domain=None):
@@ -108,20 +58,19 @@ class Lot:
             or op == '!=' and not operand)
         if search_expired:
             return [
-                ('expiry_date', '!=', None),
-                ('expiry_date', '<=', date),
+                ('expiration_date', '!=', None),
+                ('expiration_date', '<=', date),
                 ]
         else:
             return [
                 'OR', [
-                    ('expiry_date', '=', None),
+                    ('expiration_date', '=', None),
                     ], [
-                    ('expiry_date', '>', date),
+                    ('expiration_date', '>', date),
                     ]]
 
 
-class Location:
-    __metaclass__ = PoolMeta
+class Location(metaclass=PoolMeta):
     __name__ = 'stock.location'
 
     expired = fields.Boolean('Expired Products\' Location',
@@ -159,8 +108,7 @@ class Location:
         super(Location, cls).write(*args)
 
 
-class Move:
-    __metaclass__ = PoolMeta
+class Move(metaclass=PoolMeta):
     __name__ = 'stock.move'
 
     to_location_allow_expired = fields.Function(
@@ -189,12 +137,6 @@ class Move:
                 'planned_date'):
             if fname not in cls.lot.depends:
                 cls.lot.depends.append(fname)
-        cls._error_messages.update({
-            'expired_lot_invalid_destination': ('You are trying to do the '
-                'Stock Move "%(move)s" but its Lot "%(lot)s" is expired and '
-                'the Destination Location "%(to_location)s" doesn\'t accept '
-                'expired lots.'),
-            })
 
     @fields.depends('to_location')
     def on_change_with_to_location_allow_expired(self, name=None):

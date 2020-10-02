@@ -4,9 +4,5 @@
 <data>
     <xpath expr="/tree/field[@name='product']" position="after">
         <field name="expired"/>
-        <field name="life_date"/>
-        <field name="expiry_date"/>
-        <field name="removal_date"/>
-        <field name="alert_date"/>
     </xpath>
 </data>
